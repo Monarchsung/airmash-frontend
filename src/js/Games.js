@@ -1,7 +1,7 @@
 import Vector from './Vector';
 
 // Default games data is fetched on build from airmash-refugees/airmash-games repo
-import { defaultGamesData } from './GamesData'; 
+// import { defaultGamesData } from './GamesData'; 
 
 // Visibility of the drop-down menus
 let playRegionMenuVisible = false;
@@ -41,7 +41,122 @@ let gameHasStarted = false;
 
 let inviteCopiedTimeout = null;
 
-let gamesData = defaultGamesData;
+// let gamesData = defaultGamesData;
+let gamesData = [
+  {
+    id: 'us',
+    name: 'United States',
+    games: [
+      {
+        id: 'ffa1',
+        name: 'Free For All #2',
+        nameShort: 'FFA #3',
+        host: 'localhost:4000',
+        path: '/ffa',
+        type: 1, // Changed from 'ffa' to 1
+        players: null,
+        bots: null
+      },
+      {
+        id: 'ctf1',
+        name: 'Capture The Flag #2',
+        nameShort: 'CTF #1',
+        host: 'localhost:5000',
+        path: '/ctf',
+        type: 2, // Changed from 'ctf' to 2
+        players: null,
+        bots: null
+      },
+      {
+        id: 'btr1',
+        name: 'Battle Royale #2',
+        nameShort: 'BTR #2',
+        host: 'localhost:6000',
+        path: '/btr',
+        type: 3, // Changed from 'btr' to 3
+        players: null,
+        bots: null
+      },
+      {
+        id: 'ffa2',
+        name: 'Steamroller FFA',
+        nameShort: 'FFA #4',
+        host: 'localhost:3501',
+        path: '/ffa',
+        type: 1, // 'ffa' corresponds to 1
+        players: null,
+        bots: null
+      },
+      {
+        id: 'ffa2',
+        name: 'Free For All #2',
+        nameShort: 'FFA #2',
+        host: 'ffa.herrmash.com',
+        path: '/ffa',
+        type: 1,
+        players: null,
+        bots: null
+      },
+      {
+        id: 'ctf2',
+        name: 'Capture The Flag #2',
+        nameShort: 'CTF #2',
+        host: 'airmash.us',
+        path: '/ctf',
+        type: 2,
+        players: null,
+        bots: null
+      },
+      {
+        id: 'btr1',
+        name: 'Battle Royale #1',
+        nameShort: 'BTR #1',
+        host: 'us.airmash.online',
+        path: '/btr',
+        type: 3,
+        players: null,
+        bots: null
+      },
+      {
+        id: 'box1',
+        name: 'Box Experiments #1',
+        nameShort: 'BOX #1',
+        host: 'box-server.mooo.com',
+        path: '/ffa',
+        type: 4, // Assuming this is 'ffa'
+        players: null,
+        bots: null
+      }
+    ]
+  },
+  {
+    id: 'eu',
+    name: 'Europe',
+    games: [
+      {
+        id: 'ffa1',
+        name: 'Free For All #1',
+        nameShort: 'FFA #1',
+        host: 'eu.airmash.online',
+        path: '/ffa',
+        type: 1,
+        players: null,
+        bots: null
+      },
+      {
+        id: 'btr1',
+        name: 'Battle Royale #1',
+        nameShort: 'BTR #1',
+        host: 'eu.airmash.online',
+        path: '/btr',
+        type: 3,
+        players: null,
+        bots: null
+      }
+    ]
+  }
+];
+
 let isGamesDataEmpty = false;
 
 let ctf = {};
@@ -253,47 +368,33 @@ Games.logout = function() {
 };
 
 var refreshGamesData = function(callback, fromMainPage) {
-    let url = `https://${game.backendHost}/games`;
-    if (fromMainPage) {
-        url += '?main=1';
+    // Since we're using our own data, there's no need to fetch from the server.
+
+    // Set the flag from a default country code if necessary
+    if (game.myFlag == 'xx') {
+        game.myFlag = 'us'; // Or any default country code you prefer
     }
 
-    $.ajax({
-        url: url,
-        dataType: 'json',
-        cache: false,
-        success: function(response) {
-            // Parse games data in response
-            try {
-                gamesData = JSON.parse(response.data)
-            } catch (e) {
-                return;
-            }
+    // Check if gamesData is not empty
+    if (gamesData && gamesData.length > 0) {
+        isGamesDataEmpty = false;
+    } else {
+        isGamesDataEmpty = true;
+        // Handle the case where gamesData is empty if needed
+    }
 
-            // Set flag from country code in response
-            if (game.myFlag == 'xx') {
-                game.myFlag = response.country;
-            }
+    // Proceed with the rest of the initialization as in the original code
+    updatePlayersOnline();
+    if (!isGamesDataEmpty) {
+        selectGameFromUrlHash();
+        Games.updateRegion(false);
+        Games.updateType(false);
+    }
 
-            // On protocol mismatch, reload the page
-            if (fromMainPage && game.protocol != response.protocol) {
-                if (window.location.hash !== '#reload') {
-                    Tools.ajaxPost(`https://${game.backendHost}/clienterror`, { type: 'protocol' }, function() {
-                        UI.showMessage('alert', '<span class="mainerror">Protocol update<br>Your client is being updated to the new version</span>', 30000);
-                        setTimeout(function() { window.location = '/?' + Tools.randomID(10) + '#reload' }, 5000);
-                    });
-                }
-                else {
-                    Tools.ajaxPost(`https://${game.backendHost}/clienterror`, { type: 'protocolretry' });
-                }
-            }
-
-            // Success callback
-            callback();
-        },
-        error: function() {}
-    })
+    // Success callback
+    callback();
 };
+
 
 var updatePlayersOnline = function() {
     let playerCount = 0;
@@ -808,7 +909,8 @@ Games.performPing = function() {
         }
         else {
             pingHosts[pingHost].num++;
-            let url = `https://${pingHost}/ping`;
+            let protocol = pingHost.includes('localhost') ? 'http://' : 'https://';
+            let url = `${protocol}${pingHost}/ping`;
             performSinglePing(pingHost, url, function() {
                 performSinglePing(pingHost, url);
             });
