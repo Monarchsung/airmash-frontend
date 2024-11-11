@@ -52,30 +52,24 @@ let gamesData = [
         name: 'Free For All #2',
         nameShort: 'FFA #1',
         host: 'localhost:4000',
-        path: 'ffa',
+        path: '', // Empty Strings for Ab-Servers
         type: 1, // Changed from 'ffa' to 1
-        players: null,
-        bots: null
       },
       {
         id: 'ctf1',
         name: 'Capture The Flag #2',
         nameShort: 'CTF #1',
         host: 'localhost:5000',
-        path: 'ctf',
+        path: '',
         type: 2, // Changed from 'ctf' to 2
-        players: null,
-        bots: null
       },
       {
         id: 'btr1',
         name: 'Battle Royale #2',
         nameShort: 'BTR #1',
         host: 'localhost:6000',
-        path: 'btr',
+        path: '',
         type: 3, // Changed from 'btr' to 3
-        players: null,
-        bots: null
       },
       {
         id: 'ffa2',
@@ -84,8 +78,6 @@ let gamesData = [
         host: 'localhost:3501',
         path: 'ffa',
         type: 1, // 'ffa' corresponds to 1
-        players: null,
-        bots: null
       },
       {
         id: 'ffa3',
@@ -94,8 +86,6 @@ let gamesData = [
         host: 'ffa.herrmash.com',
         path: '/ffa',
         type: 1,
-        players: null,
-        bots: null
       },
       {
         id: 'ctf2',
@@ -104,8 +94,6 @@ let gamesData = [
         host: 'airmash.us',
         path: '/ctf',
         type: 2,
-        players: null,
-        bots: null
       },
       {
         id: 'btr2',
@@ -114,8 +102,6 @@ let gamesData = [
         host: 'us.airmash.online',
         path: '/btr',
         type: 3,
-        players: null,
-        bots: null
       },
       {
         id: 'box1',
@@ -124,8 +110,6 @@ let gamesData = [
         host: 'box-server.mooo.com',
         path: '/ffa',
         type: 4, // Assuming this is 'dev'
-        players: null,
-        bots: null
       }
     ]
   },
@@ -140,8 +124,6 @@ let gamesData = [
         host: 'eu.airmash.online',
         path: '/ffa',
         type: 1,
-        players: null,
-        bots: null
       },
       {
         id: 'btr1',
@@ -150,8 +132,6 @@ let gamesData = [
         host: 'eu.airmash.online',
         path: '/btr',
         type: 3,
-        players: null,
-        bots: null
       }
     ]
   }
@@ -395,29 +375,48 @@ var refreshGamesData = function(callback, fromMainPage) {
     callback();
 };
 
-
 var updatePlayersOnline = function() {
     let playerCount = 0;
     let gameCount = 0;
+    let fetchPromises = [];
+
     for (let region of gamesData) {
         for (let regionGame of region.games) {
-            if (regionGame.players) {
-                playerCount += regionGame.players;
-            }
-            if (regionGame.bots) {
-                playerCount -= regionGame.bots;
-            }
-            gameCount++;
+            // Construct the URL for the player data
+            let protocol = regionGame.host.includes('localhost') ? 'http://' : 'https://';
+            let url = `${protocol}${regionGame.host}/`;
+
+            // Fetch player data and accumulate the counts
+            let fetchPromise = fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.players) {
+                        playerCount += data.players;
+                    }
+                    if (data.bots) {
+                        playerCount -= data.bots;
+                    }
+                    gameCount++;
+                })
+                .catch(error => {
+                    console.error('Error fetching player data:', error);
+                    gameCount++;
+                });
+
+            fetchPromises.push(fetchPromise);
         }
     }
-    if (gameCount === 0) {
-        isGamesDataEmpty = true;
-        UI.showMessage('alert', '<span class="mainerror">We are currently performing server maintenance<br>Please try again in a few minutes</span>', 30000);
-    }
-    else {
-        let html = '<div class="item smallerpad">' + playerCount + '</div>player' + (playerCount > 1 ? 's' : '') + ' online';
-        $('#gameinfo').html(html);
-    }
+
+    // Once all fetch requests are done, update the UI
+    Promise.all(fetchPromises).then(() => {
+        if (gameCount === 0) {
+            isGamesDataEmpty = true;
+            UI.showMessage('alert', '<span class="mainerror">We are currently performing server maintenance<br>Please try again in a few minutes</span>', 30000);
+        } else {
+            let html = '<div class="item smallerpad">' + playerCount + '</div>player' + (playerCount > 1 ? 's' : '') + ' online';
+            $('#gameinfo').html(html);
+        }
+    });
 };
 
 var getRegionByName = function(regionName) {
@@ -902,14 +901,14 @@ Games.performPing = function() {
 
         // Stop pinging when threshold reached, or ping host if not
         if (pingNum > 6) {
-            
             if (performPingInterval) {
                 clearInterval(performPingInterval);
             }
-        }
-        else {
+        } else {
             pingHosts[pingHost].num++;
-            let url = `https://${pingHost}/ping`;
+            // Use http for localhost and https for other hosts
+            let protocol = pingHost.includes('localhost') ? 'http://' : 'https://';
+            let url = `${protocol}${pingHost}/ping`;
             performSinglePing(pingHost, url, function() {
                 performSinglePing(pingHost, url);
             });
