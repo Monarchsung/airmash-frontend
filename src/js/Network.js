@@ -426,39 +426,44 @@ Network.reconnect = function() {
 };
 
 Network.setup = function() {
-    if (DEVELOPMENT && game.customServerUrl) {
-        currentSockUrl = game.customServerUrl;
-    } else {
-        currentSockUrl = "wss://" + game.playHost + "/" + game.playPath;
+    let protocol = game.playHost.includes('localhost') ? 'ws://' : 'wss://';
+    currentSockUrl = protocol + game.playHost + (game.playPath.startsWith('/') ? game.playPath : '/' + game.playPath);
+
+    // Close the backup socket if it is already connected
+    if (backupSock && backupSockIsConnected) {
+        backupSock.close();
     }
-    backupSock && backupSockIsConnected && backupSock.close(),
-    (primarySock = new WebSocket(currentSockUrl)).binaryType = "arraybuffer",
+
+    // Create the primary WebSocket
+    primarySock = new WebSocket(currentSockUrl);
+    primarySock.binaryType = "arraybuffer";
+
     primarySock.onopen = function() {
         sendMessageDict({
             c: ClientPacket.LOGIN,
             protocol: game.protocol,
             name: game.myName,
-            session: (config.auth.tokens && config.auth.tokens.game) ? JSON.stringify({token: config.auth.tokens.game}) : "none",
+            session: (config.auth.tokens && config.auth.tokens.game) ? JSON.stringify({ token: config.auth.tokens.game }) : "none",
             horizonX: Math.ceil(game.halfScreenX / game.scale),
             horizonY: Math.ceil(game.halfScreenY / game.scale),
             flag: game.myFlag.toUpperCase()
         });
-    }
-    ,
+    };
+
     primarySock.onclose = function() {
         if (ackIntervalId != null) {
-            clearInterval(ackIntervalId)
+            clearInterval(ackIntervalId);
         }
 
         if (game.state !== Network.STATE.CONNECTING) {
             game.server = {};
             game.state = Network.STATE.CONNECTING;
-            if (lastReceivedError === false) { 
+            if (lastReceivedError === false) {
                 Network.reconnectMessage();
             }
         }
-    }
-    ,
+    };
+
     primarySock.onerror = function(event) {
         console.error("WebSocket error observed:", event);
         UI.serverMessage({
@@ -466,26 +471,31 @@ Network.setup = function() {
             text: "WebSocket connection failed. Try disabling AdBlock!",
             duration: 30000
         });
-    }
-    ,
+    };
+
     primarySock.onmessage = function(e) {
-        dispatchIncomingMessage(decodeMessageToDict(e.data))
-    }
+        dispatchIncomingMessage(decodeMessageToDict(e.data));
+    };
 };
 
 var initBackupSock = function() {
-    (backupSock = new WebSocket(currentSockUrl)).binaryType = "arraybuffer";
+    let protocol = game.playHost.includes('localhost') ? 'ws://' : 'wss://';
+    currentSockUrl = protocol + game.playHost + (game.playPath.startsWith('/') ? game.playPath : '/' + game.playPath);
+
+    backupSock = new WebSocket(currentSockUrl);
+    backupSock.binaryType = "arraybuffer";
+
     backupSock.onopen = function() {
         sendMessageDict({
             c: ClientPacket.BACKUP,
             token: game.myToken
-        }, true)
-    }
-    ,
+        }, true);
+    };
+
     backupSock.onclose = function() {
-        backupSockIsConnected = false
-    }
-    ,
+        backupSockIsConnected = false;
+    };
+
     backupSock.onerror = function(event) {
         console.error("WebSocket error observed:", event);
         UI.serverMessage({
@@ -493,14 +503,16 @@ var initBackupSock = function() {
             text: "WebSocket connection failed. Try disabling AdBlock!",
             duration: 30000
         });
-    }
-    ,
+    };
+
     backupSock.onmessage = function(sockMsg) {
-        var msg = decodeMessageToDict(sockMsg.data);
-        msg.c === ServerPacket.BACKUP && (backupSockIsConnected = true),
-        msg.backup = true,
-        dispatchIncomingMessage(msg)
-    }
+        let msg = decodeMessageToDict(sockMsg.data);
+        if (msg.c === ServerPacket.BACKUP) {
+            backupSockIsConnected = true;
+        }
+        msg.backup = true;
+        dispatchIncomingMessage(msg);
+    };
 };
 
 var encodeNetworkMessage = function(msg, t) {
