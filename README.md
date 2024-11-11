@@ -61,3 +61,5 @@ together to preserve what remains of the game.
 So with that said, please assume quite a permissive policy with regard to what
 can be merged into this repository, and please understand this repository
 belongs to everyone.
+
+### Modified The [Games.js](https://github.com/Monarchsung/airmash-frontend/blob/ebc021ba49a2890fa3e60e4a72f5505cff1b63d9/src/js/Games.js#L45-L138) to not rely on airmash services instead you can add your own local servers and the current servers. 
