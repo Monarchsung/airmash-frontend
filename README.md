@@ -5,8 +5,10 @@
 ## Modified The [Games.js](https://github.com/Monarchsung/airmash-frontend/blob/ebc021ba49a2890fa3e60e4a72f5505cff1b63d9/src/js/Games.js#L45-L138) to not rely on airmash services instead you can add your own local servers and the online servers. 
 
 Running this using docker 
-``docker build -t airmash-frontend .``
-``docker run -p 5000:5000 airmash-frontend``
+```
+docker build -t airmash-frontend .
+docker run -p 5000:5000 airmash-frontend
+```
 
 This repository contains the last available copy of the Airmash frontend app,
 as extracted from archive.org, with a bunch of edits intended to make things
