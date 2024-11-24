@@ -6,6 +6,7 @@ import Vector from './Vector';
 // Visibility of the drop-down menus
 let playRegionMenuVisible = false;
 let playTypeMenuVisible = false;
+let skinMenuVisible = false;
 let gamesSelectorVisible = false;
 
 const gameTypes = [
@@ -13,7 +14,8 @@ const gameTypes = [
     'ffa',
     'ctf',
     'br',
-    'dev'
+    'dev',
+    'tr'
 ];
 
 const gameTypeNames = [
@@ -21,7 +23,8 @@ const gameTypeNames = [
     'Free For All',
     'Capture The Flag',
     'Battle Royale',
-    'Development'
+    'Development',
+    'Training Range'
 ];
 
 const gameTypeDescriptions = [
@@ -29,7 +32,8 @@ const gameTypeDescriptions = [
     'Everyone versus everyone deathmatch. No teams.',
     'Players split into 2 teams. 2 flags are placed inside each base. The objective is to move the enemy flag from their base to your base.',
     'Players spawn at random locations all across the map. Destroyed players will not respawn. Last player standing wins.',
-    'Game environments for development and testing.'
+    'Game environments for development and testing.',
+    'Train your aim and dodging skills.'
 ];
 
 let pingHosts = {};
@@ -48,12 +52,12 @@ let gamesData = [
     name: 'US',
     games: [
       {
-        id: 'ffa1',
-        name: 'Free For All #2',
-        nameShort: 'FFA #1',
+        id: 'trs1',
+        name: 'Training Range #1',
+        nameShort: 'AIM #1',
         host: 'localhost:4000',
         path: '', // Empty Strings for Ab-Servers
-        type: 1, // Changed from 'ffa' to 1
+        type: 5, // Changed from 'ffa' to 5
       },
       {
         id: 'ctf1',
@@ -67,16 +71,16 @@ let gamesData = [
         id: 'btr1',
         name: 'Battle Royale #2',
         nameShort: 'BTR #1',
-        host: 'localhost:6000',
+        host: 'localhost:8083',
         path: '',
         type: 3, // Changed from 'btr' to 3
       },
       {
         id: 'ffa2',
-        name: 'Steamroller FFA',
-        nameShort: 'FFA #2',
+        name: 'Team Death Match #1',
+        nameShort: 'TDM #1',
         host: 'localhost:3501',
-        path: 'ffa',
+        path: '', // Use empty for Ab-Server
         type: 1, // 'ffa' corresponds to 1
       },
       {
@@ -86,6 +90,14 @@ let gamesData = [
         host: 'ffa.herrmash.com',
         path: '/ffa',
         type: 1,
+      },
+      {
+        id: 'trs2',
+        name: 'Training Range #2',
+        nameShort: 'DODGE #1',
+        host: 'localhost:7000',
+        path: '', // Use empty for Ab-Server
+        type: 5, // 'tr' corresponds to 5
       },
       {
         id: 'ctf2',
@@ -164,6 +176,9 @@ Games.setup = function() {
     $('#playtype').on('click', function(event) {
         Games.updateType(true, event)
     });
+    $('#skin').on('click', function(event) {
+        Games.updateSkin(true, event)
+    });
     $('#open-menu').on('click', function(event) {
         Games.popGames(),
         event.stopPropagation()
@@ -210,6 +225,7 @@ Games.setup = function() {
 
     Games.updateRegion(false);
     Games.updateType(false);
+    Games.updateSkin(false);
     pingGameServersForRegions();
 
     refreshGamesData(function() {
@@ -499,12 +515,22 @@ Games.selectGame = function(clickEvent, room) {
     Games.updateType(false);
 };
 
+Games.selectSkin = function(clickEvent, skin) {
+    clickEvent.stopPropagation();
+    Sound.UIClick();
+    game.skin = skin;
+    Games.updateSkin(false);
+};
+
 Games.closeDropdowns = function() {
     if (playTypeMenuVisible) {
         Games.updateType(false);
     }
     if (playRegionMenuVisible) {
         Games.updateRegion(false);
+    }
+    if (skinMenuVisible) {
+        Games.updateSkin(false);
     }
 };
 
@@ -531,6 +557,9 @@ Games.updateRegion = function(menuVisible, clickEvent) {
         if (menuVisible) {
             if (playTypeMenuVisible) {
                 Games.updateType(false);
+            }
+            if (skinMenuVisible) {
+                Games.updateSkin(false);
             }
 
             // Header row
@@ -656,6 +685,9 @@ Games.updateType = function(menuVisible, clickEvent) {
             if (playRegionMenuVisible) { 
                 Games.updateRegion(false);
             }
+            if (skinMenuVisible) {
+                Games.updateSkin(false);
+            } 
 
             // Header row
             html += '<div class="item">';
@@ -747,6 +779,67 @@ Games.updateType = function(menuVisible, clickEvent) {
 
         playTypeMenuVisible = menuVisible;
     }
+};
+
+Games.updateSkin = function(menuVisible, clickEvent) {
+    let html = '';
+    let css = null;
+    if (clickEvent) {
+        clickEvent.stopPropagation();
+        if (!skinMenuVisible) {
+            Sound.UIClick();
+        }
+    }
+    if (menuVisible) {
+        UI.closeLogin();
+    }
+    if (menuVisible == null) {
+        menuVisible = skinMenuVisible;
+    }
+    
+    if (menuVisible) {
+        if (playRegionMenuVisible) { 
+            Games.updateRegion(false);
+        }
+        if (playTypeMenuVisible) {
+            Games.updateType(false);
+        }
+        const my_skins = JSON.parse(localStorage.getItem("my_skins")||'[]');
+        html += '<div class="item"></div>';
+        html += `<div class="item selectable" 
+                onclick="Games.selectSkin(event, '')">
+                <div class="gametype chooser">Default</div>
+                <div class="clear"></div>
+        </div>`;
+        for (let url of my_skins) {
+            html += `<div class="item selectable" 
+                onclick="Games.selectSkin(event, '${url}')">
+                <div class="gametype chooser"><img style="max-width:50px;max-height:50px" src="${url}"></div>
+                <div class="clear"></div>
+            </div>`;
+        }
+        html += '<div class="item"></div>';
+        css = {
+            width: '280px',
+            height: 'auto',
+            'z-index': '2'
+        };
+        $('#playtype').removeClass('hoverable');
+    } else {
+        html += '<div class="arrowdown"></div>',
+        html += '<div class="playtop">SKIN</div>';
+        html += '<div class="playbottom">' + (!game.skin ? 'Default' : `<img style="max-width:20px;max-height:20px" src="${game.skin}">`) + '</div>';
+        css = {
+            width: '190px',
+            height: '40px',
+            'z-index': 'auto'
+        };
+        $('#skin').addClass('hoverable');
+    }
+    $('#skin').html(html);
+    $('#skin').css(css);
+    skinMenuVisible = menuVisible;
+    
 };
 
 Games.popGames = function() {
@@ -1205,6 +1298,16 @@ Games.prep = function() {
             $('#gamespecific').html('');
             UI.show('#gamespecific');
             break;
+
+        case GameType.FFA:
+            if (game.server.config.tdmMode) {
+                $('#gamespecific').html(
+                    '<div id="blueflag-name" class="blueflag-player" style="color: #4076E2">0</div>' + 
+                    '<div id="redflag-name" class="redflag-player" style="color: #EA4242">0</div>'
+                    );
+                UI.show('#gamespecific');
+            }
+            break;
     }    
 };
 
@@ -1237,6 +1340,29 @@ Games.wipe = function() {
  * GAME_FLAG message handler
  */
 Games.networkFlag = function(msg) {
+    
+        if (game.gameType == GameType.FFA && !ctf.flagRed) {
+        ctf.flagRed = {
+            visible: false,
+            playerId: null,
+            direction: 1,
+            diffX: 0,
+            momentum: 0,
+            position: Vector.zero(),
+            basePos: new Vector(8602,-944),
+            sprite: Textures.init('ctfFlagRed', {
+                scale: 0.4,
+                visible: false
+            }),
+            spriteShadow: Textures.init('ctfFlagShadow', {
+                scale: 0.4 * 1.1,
+                visible: false
+            }),
+            minimapSprite: Textures.init('minimapFlagRed'),
+            minimapBase: Textures.init('minimapBaseRed')
+        };
+    }
+    
     // Check if this is a blue (1) or red (2) team flag
     let flag, selector, flagCaptures;
     if (msg.flag == 1) {
@@ -1289,13 +1415,16 @@ Games.networkFlag = function(msg) {
     }
 
     updateCtfFlag(flag, false);
+    
+    game.flagEnabled = true;
 };
 
 var updateCtfFlag = function(flag, isResize) {
     // If window is being resized, redraw minimap
-    if(isResize) {
+    if(isResize && game.flagEnabled) {
         Graphics.minimapMob(flag.minimapSprite, flag.position.x, flag.position.y);
-        Graphics.minimapMob(flag.minimapBase, flag.basePos.x, flag.basePos.y);
+        if (game.gameType == GameType.CTF)
+            Graphics.minimapMob(flag.minimapBase, flag.basePos.x, flag.basePos.y);
     }
 
     if(flag.playerId != null) {
@@ -1658,5 +1787,36 @@ Games.update = function(isResize) {
                 Games.popFirewall(firewall.pos, firewall.radius);
             }
             break;
+        case GameType.FFA:
+            if (ctf.flagBlue) 
+                    updateCtfFlag(ctf.flagBlue, isResize);
+            if (ctf.flagRed)
+                    updateCtfFlag(ctf.flagRed, isResize);
+            break;
     }
+};
+
+const team_colors = ["#e6194b", "#3cb44b", "#ffe119", "#f58231", "#911eb4", "#46f0f0", "#f032e6",  "#bcf60c", "#008080"];
+let assigned_team_colors = {};
+Games.assign_team_color = function(team) {
+    if (assigned_team_colors[team]) {
+        return assigned_team_colors[team];
+    } else {
+        let available = team_colors.filter(x => !Object.values(assigned_team_colors).includes(x));
+        if (!available.length)
+            available = team_colors;
+        const color = available[Math.floor(Math.random()*available.length)];
+        assigned_team_colors[team] = color;
+        return color;
+    }
+};
+
+Games.unassign_team_color = function(team) {
+    assigned_team_colors[team] = null;
+};
+
+Games.updateTdmScore = function(blue_score, red_score) {
+    if (!game.server.config.tdmMode) return;
+    $('#blueflag-name').html(`<span class="rounds">${blue_score}</span>`);
+    $('#redflag-name').html(`<span class="rounds">${red_score}</span>`);
 };
